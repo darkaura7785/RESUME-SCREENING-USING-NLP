@@ -1,0 +1,163 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from unicodedata import category
+
+df = pd.read_csv('UpdatedResumeDataSet.csv')
+"""print(df.head())"""
+"""print(df['Category'].value_counts())"""
+plt.figure(figsize=(15, 5))
+sns.countplot(x=df['Category'])
+plt.xticks(rotation=90)
+plt.show()
+
+counts = df['Category'].value_counts()
+labels = df['Category'].unique()
+plt.figure(figsize=(15, 10))
+plt.pie(counts,labels=labels,autopct='%1.1f%%',shadow=True, colors=plt.cm.coolwarm(np.linspace(0,1,3)))
+plt.show()
+
+"""Cleaning Data:
+1 URLS,
+2 hashtags,
+3 mentions,
+4 special letters,
+5 punctuations:"""
+
+
+
+
+
+import re
+
+def cleanResume(txt):
+    # Use raw strings for regex patterns
+    cleanText = re.sub(r'http\S+\s', ' ', txt)
+    cleanText = re.sub(r'RT|cc', ' ', cleanText)
+    cleanText = re.sub(r'#\S+\s', ' ', cleanText)
+    cleanText = re.sub(r'@\S+', ' ', cleanText)
+    cleanText = re.sub(r'[%s]' % re.escape("""!"#$&'()*+,-./:;<=>?@[]^_{|}~"""), ' ', cleanText)
+    cleanText = re.sub(r'[^\x00-\x7f]', ' ', cleanText)
+    cleanText = re.sub(r'\s+', ' ', cleanText)
+    return cleanText
+
+
+df['Resume'] = df['Resume'].apply(lambda x: cleanResume(x))
+
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder()
+
+le.fit(df['Category'])
+df['Category'] = le.transform(df['Category'])
+"""print(df.Category.unique())"""
+
+"""VECTORIZATION:"""
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+tfidf = TfidfVectorizer(stop_words='english')
+
+tfidf.fit(df['Resume'])
+requiredText = tfidf.transform(df['Resume'])
+
+"""SPLITTING"""
+
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(requiredText, df['Category'], test_size=0.2, random_state=42)
+print(x_train.shape)
+print(x_test.shape)
+
+"""MODEL TRAINING AND PRINT CLASSIFICATION REPORT"""
+"""Using K Neighbor Classifier"""
+
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.metrics import accuracy_score
+
+clf = OneVsRestClassifier(KNeighborsClassifier())
+clf.fit(x_train,y_train)
+ypred = clf.predict(x_test)
+print(accuracy_score(y_test,ypred))
+
+"""-------TRAINER COMPLETE CAN BE INTEGRATED IN WEB"""
+
+"""PREDICTION SYSTEM"""
+
+import pickle
+pickle.dump(tfidf,open('tfidf.pkl','wb'))
+pickle.dump(clf, open('clf.pkl', 'wb'))
+
+
+myresume = """
+Jane Smith is a certified personal trainer with over 5 years of experience in helping individuals achieve their fitness goals. Specializing in weight loss, strength training, and sports conditioning, Jane has developed personalized workout routines for clients of all ages and fitness levels. She has extensive knowledge in nutrition and exercise science, and uses this to create holistic health and fitness programs that are tailored to individual needs.
+
+Jane holds a degree in Exercise Science and is a certified trainer through the National Academy of Sports Medicine (NASM). She has worked with athletes, seniors, and individuals with chronic health conditions, helping them improve their physical well-being and overall quality of life.
+
+Her expertise includes:
+- Weight Loss and Body Composition
+- Strength Training and Resistance Exercises
+- Cardio Conditioning
+- Nutrition Coaching and Meal Planning
+- Injury Prevention and Rehabilitation
+- Functional Movement and Flexibility Training
+- Group Fitness Classes
+
+Certifications:
+- Certified Personal Trainer, NASM
+- CPR and First Aid Certified
+- Yoga Instructor (200-Hour Certification)
+
+Education:
+BSc in Exercise Science, ABC University, 2014-2018
+
+Work Experience:
+- Personal Trainer at XYZ Fitness Gym (2018-Present)
+- Fitness Coach at Wellness Center (2016-2018)
+
+Languages:
+- English (Fluent)
+- Spanish (Conversational)
+"""
+
+import pickle
+clf = pickle.load(open('clf.pkl', 'rb'))
+
+cleaned_resume = cleanResume(myresume)
+
+input_features = tfidf.transform([cleaned_resume])
+
+prediction_id = clf.predict(input_features)[0]
+
+category_mapping = {
+
+15: "Java Developer",
+23: "Testing",
+8: "Devops Engineer",
+24: "Web Designing",
+12: "HR",
+13: "Hadoop",
+3: "Blockchain",
+10: "ETL Developer",
+18: "Operations Manager",
+20: "Python Developer",
+6: "Data Science",
+22: "Sales",
+16: "Mechanical Engineer",
+1: "Arts" ,
+7: "Database",
+11: "Electrical Engineering",
+14: "Health and fitness",
+19: "PMO",
+4: "Business Analyst",
+9: "DotNet Developer",
+2: "Automation Testing",
+17: "Network Security Engineer",
+21: "SAP Developer",
+5: "Civil Engineer",
+0: "Advocate",
+}
+
+category_name = category_mapping.get(prediction_id, "Uknown")
+
+print("Prediction Category: ", category_name)
+print("Prediction ID: ", prediction_id)
