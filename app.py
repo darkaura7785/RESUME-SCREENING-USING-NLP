@@ -5,7 +5,7 @@ import PyPDF2  # Extract text from PDF
 import re
 
 # Load pre-trained model and TF-IDF vectorizer (ensure these are saved earlier)
-import pickle, requests, os, streamlit as st
+import requests, pickle, os, streamlit as st
 
 def load_model_from_gdrive(file_id, local_path="clf.pkl"):
     """
