@@ -5,9 +5,35 @@ import PyPDF2  # Extract text from PDF
 import re
 
 # Load pre-trained model and TF-IDF vectorizer (ensure these are saved earlier)
-svc_model = pickle.load(open('clf.pkl', 'rb'))  # Example file name, adjust as needed
-tfidf = pickle.load(open('tfidf.pkl', 'rb'))  # Example file name, adjust as needed
-le = pickle.load(open('encoder.pkl', 'rb'))  # Example file name, adjust as needed
+import pickle, requests, os, streamlit as st
+
+def load_model_from_gdrive(file_id, local_path="clf.pkl"):
+    # If already downloaded locally, reuse it
+    if os.path.exists(local_path):
+        with open(local_path, "rb") as f:
+            return pickle.load(f)
+
+    # Otherwise fetch from Google Drive
+    url = f"https://drive.google.com/uc?id={file_id}"
+    try:
+        with st.spinner("📥 Downloading large model from Google Drive..."):
+            response = requests.get(url)
+            response.raise_for_status()
+            # Save locally for reuse
+            with open(local_path, "wb") as f:
+                f.write(response.content)
+        return pickle.loads(response.content)
+    except Exception as e:
+        st.error(f"Could not load model from Google Drive: {e}")
+        return None
+
+# 
+svc_model = load_model_from_gdrive("1FkQoikhr30M83XNeq-A8e73Tt8-Jy_v3")
+
+# These smaller files can stay in GitHub
+tfidf = pickle.load(open("tfidf.pkl", "rb"))
+le = pickle.load(open("encoder.pkl", "rb"))
+
 
 
 # Function to clean resume text
