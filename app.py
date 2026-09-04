@@ -8,26 +8,42 @@ import re
 import pickle, requests, os, streamlit as st
 
 def load_model_from_gdrive(file_id, local_path="clf.pkl"):
-    # If already downloaded locally, reuse it
+    """
+    Download a large model file from Google Drive if not cached locally.
+    Handles confirmation tokens for large files.
+    """
     if os.path.exists(local_path):
         with open(local_path, "rb") as f:
             return pickle.load(f)
 
-    # Otherwise fetch from Google Drive
-    url = f"https://drive.google.com/uc?id={file_id}"
-    try:
-        with st.spinner("📥 Downloading large model from Google Drive..."):
-            response = requests.get(url)
-            response.raise_for_status()
-            # Save locally for reuse
-            with open(local_path, "wb") as f:
-                f.write(response.content)
-        return pickle.loads(response.content)
-    except Exception as e:
-        st.error(f"Could not load model from Google Drive: {e}")
+    def get_confirm_token(response):
+        for key, value in response.cookies.items():
+            if key.startswith("download_warning"):
+                return value
         return None
 
-# 
+    def save_response_content(response, destination):
+        CHUNK_SIZE = 32768
+        with open(destination, "wb") as f:
+            for chunk in response.iter_content(CHUNK_SIZE):
+                if chunk:
+                    f.write(chunk)
+
+    url = "https://docs.google.com/uc?export=download"
+    session = requests.Session()
+
+    response = session.get(url, params={"id": file_id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        response = session.get(url, params={"id": file_id, "confirm": token}, stream=True)
+
+    save_response_content(response, local_path)
+
+    with open(local_path, "rb") as f:
+        return pickle.load(f)
+
+# ✅ Use your actual Google Drive file ID
 svc_model = load_model_from_gdrive("1FkQoikhr30M83XNeq-A8e73Tt8-Jy_v3")
 
 # These smaller files can stay in GitHub
