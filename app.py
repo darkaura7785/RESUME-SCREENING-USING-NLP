@@ -40,6 +40,7 @@ def load_model_from_gdrive(file_id, local_path="clf.pkl"):
 
     save_response_content(response, local_path)
 
+    # ✅ Now load the saved binary file
     with open(local_path, "rb") as f:
         return pickle.load(f)
 
